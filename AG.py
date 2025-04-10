@@ -9,6 +9,7 @@ DEMANDAS = [80, 90, 65, 70]
 NUM_INTERVALOS = 4
 
 def calcular_reserva(cromossomo):
+    # Calcula Reserva de Potência disponível em cada intervalo
     reservas = []
     for intervalo in range(NUM_INTERVALOS):
         demanda = DEMANDAS[intervalo]
@@ -22,6 +23,7 @@ def calcular_reserva(cromossomo):
     return reservas
 
 def calcular_parada(cromossomo):
+# Soma a capacidade de cada máquina parada por intervalo
     parada_por_intervalo = [0] * NUM_INTERVALOS
     for i in range(NUM_MAQUINAS):
         for k in range(INTERVALOS_MANUTENCAO[i]):
@@ -31,59 +33,71 @@ def calcular_parada(cromossomo):
     return parada_por_intervalo
 
 def penalidade(cromossomo):
+# Calcula penalidades caso não haja potência suficiente ou manutenção inválida
     reserva = calcular_reserva(cromossomo)
     penalidade_total = 0
     for r in reserva:
         if r < 0:
-            penalidade_total += abs(r) * 10
+            penalidade_total += abs(r) * 10        # Penalidade proporcional ao déficit
     for i in [0, 1]:
         if INTERVALOS_MANUTENCAO[i] == 2:
             if cromossomo[i] > NUM_INTERVALOS - 2:
-                penalidade_total += 1000
+                penalidade_total += 1000           # Penalidade se manutenção extrapola o intervalo
     return penalidade_total
 
 def aptidao(cromossomo):
+# Calcula a aptidão como a média da reserva menos a penalidade
     reserva = calcular_reserva(cromossomo)
-    media_reserva = sum(reserva) / NUM_INTERVALOS
+    media_reserva = min(reserva) / NUM_INTERVALOS
     pen = penalidade(cromossomo)
     return media_reserva - pen
 
 def crossover(pai1, pai2):
+# Cruzamento de dois pais para gerar filhos
     ponto = random.randint(1, NUM_MAQUINAS - 1)
     return pai1[:ponto] + pai2[ponto:], pai2[:ponto] + pai1[ponto:]
 
 def mutacao(cromossomo, taxa_mutacao):
+    # Aplica mutações aleatórias no cromossomo
     for i in range(NUM_MAQUINAS):
         if random.random() < taxa_mutacao:
             cromossomo[i] = random.randint(0, NUM_INTERVALOS - INTERVALOS_MANUTENCAO[i])
     return cromossomo
 
 def gerar_cromossomo_valido():
+    # Gera um cromossomo válido respeitando o limite de intervalos
     return [random.randint(0, NUM_INTERVALOS - INTERVALOS_MANUTENCAO[i]) for i in range(NUM_MAQUINAS)]
 
 def algoritmo_genetico(tamanho_populacao, taxa_crossover, taxa_mutacao, num_geracoes, callback=None):
+    # Executa o algoritmo genético principal
     populacao = [gerar_cromossomo_valido() for _ in range(tamanho_populacao)]
     for geracao in range(num_geracoes):
         aptidoes = [aptidao(c) for c in populacao]
         nova_populacao = []
 
+        # Seleção por torneio: compara dois indivíduos aleatórios
         for _ in range(tamanho_populacao):
             ind1, ind2 = random.sample(range(tamanho_populacao), 2)
             vencedor = populacao[ind1] if aptidoes[ind1] > aptidoes[ind2] else populacao[ind2]
             nova_populacao.append(vencedor[:])
 
+        # Cruzamento dos indivíduos
         for i in range(0, tamanho_populacao - 1, 2):
             if random.random() < taxa_crossover:
                 nova_populacao[i], nova_populacao[i + 1] = crossover(nova_populacao[i], nova_populacao[i + 1])
 
+        # Mutação dos indivíduos
         for i in range(tamanho_populacao):
             nova_populacao[i] = mutacao(nova_populacao[i], taxa_mutacao)
 
         populacao = nova_populacao
         melhor = max(populacao, key=aptidao)
+
+     # Atualiza a interface a cada geração, se fornecido
         if callback:
             callback(melhor, geracao + 1)
 
+    # Retorna o melhor cromossomo da população final
     return max(populacao, key=aptidao)
 
 # ---------------- Interface ----------------
